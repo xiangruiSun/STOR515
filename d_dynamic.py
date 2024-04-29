@@ -7,11 +7,6 @@ NUM_SIMULATIONS = 5
 START_NODE = 'A'
 TARGET_NODE = 'I'
 
-weather_condition = "clear"
-
-# Constants
-NUM_SIMULATIONS = 5
-
 # Speed of the car in miles per hour
 car_speed = 10  # car speed in miles/hour
 
