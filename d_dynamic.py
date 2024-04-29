@@ -4,10 +4,10 @@ import heapq
 from scipy.stats import truncnorm
 
 # Constants
-NUM_SIMULATIONS = 3
+NUM_SIMULATIONS = 3 #change this number to test the behavior
 START_NODE = 'A'
 TARGET_NODE = 'I'
-UPDATE_INTERVAL = 3  # Updates weights every 3 steps
+UPDATE_INTERVAL = 3  # Updates weights every 3 steps #change this number to test the behavior
 
 # Speed of the car in miles per hour
 car_speed = 10  # car speed in miles/hour
