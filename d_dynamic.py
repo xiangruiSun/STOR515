@@ -3,17 +3,17 @@ import numpy as np
 import heapq
 from scipy.stats import truncnorm
 
-# Constants
-NUM_SIMULATIONS = 3 #change this number to test the behavior
+# Constants for the simulation
+NUM_SIMULATIONS = 10
 START_NODE = 'A'
 TARGET_NODE = 'I'
-UPDATE_INTERVAL = 3  # Updates weights every 3 steps #change this number to test the behavior
+UPDATE_INTERVAL = 3  # Frequency of weight updates
 
-# Speed of the car in miles per hour
-car_speed = 10  # car speed in miles/hour
+# Vehicle speed and weather condition settings
+car_speed = 10  # speed in miles per hour
 weather_condition = "clear"
 
-# Weather conditions effects
+# Reduction factors for different weather conditions
 weather_speed_reduction = {
     "clear": 1,
     "windy": 0.9,
@@ -21,54 +21,43 @@ weather_speed_reduction = {
     "stormy": 0.7
 }
 
-# Pedestrian and traffic light parameters
+# Parameters for pedestrian crossings under various weather conditions
 pedestrian_params = {
     "clear": {'min_delay': 30, 'max_delay': 180, 'mean_delay': 90, 'std_dev': 35},
     "windy": {'min_delay': 25, 'max_delay': 160, 'mean_delay': 70, 'std_dev': 30},
     "rainy": {'min_delay': 10, 'max_delay': 120, 'mean_delay': 50, 'std_dev': 25},
     "stormy": {'min_delay': 0, 'max_delay': 80, 'mean_delay': 30, 'std_dev': 20}
 }
-traffic_light_choices = [30, 0]  # Red and Green times
+traffic_light_choices = [30, 0]  # Possible durations of traffic lights in seconds
 
-# Nodes with specific conditions
+# Specified nodes that have pedestrian crossings and traffic lights
 nodes_with_crossings = ['D', 'E', 'H2', 'I']
-nodes_with_traffic_lights = ['A', 'B', 'D', 'F', 'H1','H2', 'J']
+nodes_with_traffic_lights = ['A', 'B', 'D', 'F', 'H1', 'H2', 'J']
 
-# Initialize the undirected graph with distances as weights
+# Graph initialization with edges and distances
 G_undirected = nx.Graph()
-edges_tuples={
-    ('A', 'B', 0.5),
-    ('B', 'A', 0.5),
-    ('B', 'C', 0.1),
-    ('C', 'B', 0.1),
-    ('A', 'D', 0.2),
-    ('D', 'A', 0.2),
-    ('D', 'E', 0.2),
-    ('E', 'D', 0.2),
-    ('E', 'F', 0.2),
-    ('F', 'E', 0.2),
-    ('C', 'F', 0.1),
-    ('F', 'C', 0.1),
-    ('F', 'G', 0.2),
-    ('G','F',0.2),
-    ('D','H1',0.3),
-    ('H1','D',0.3),
-    ('D','H2',0.2),
-    ('H2','D',0.2),
-    ('H1','I',0.3),
-    ('I','H1',0.3),
-    ('H2','I',0.3),
-    ('I','H2',0.3),
-    ('I','J',0.1),
-    ('J','I',0.1),
-    ('F','J',0.2),
-    ('J','F',0.2),
+edges_tuples = {
+    ('A', 'B', 0.5), ('B', 'A', 0.5), ('B', 'C', 0.1), ('C', 'B', 0.1),
+    ('A', 'D', 0.2), ('D', 'A', 0.2), ('D', 'E', 0.2), ('E', 'D', 0.2),
+    ('E', 'F', 0.2), ('F', 'E', 0.2), ('C', 'F', 0.1), ('F', 'C', 0.1),
+    ('F', 'G', 0.2), ('G', 'F', 0.2), ('D', 'H1', 0.3), ('H1', 'D', 0.3),
+    ('D', 'H2', 0.2), ('H2', 'D', 0.2), ('H1', 'I', 0.3), ('I', 'H1', 0.3),
+    ('H2', 'I', 0.3), ('I', 'H2', 0.3), ('I', 'J', 0.1), ('J', 'I', 0.1),
+    ('F', 'J', 0.2), ('J', 'F', 0.2)
 }
 
+# Add edges to the graph
 for start, end, distance in edges_tuples:
     G_undirected.add_edge(start, end, distance=distance, weight=0)
 
-# Simulation loop
+# Initialize the update counts for each edge considering undirected nature
+update_counts = {}
+for start, end, _ in edges_tuples:
+    if (start, end) not in update_counts and (end, start) not in update_counts:
+        update_counts[(start, end)] = 0
+        update_counts[(end, start)] = 0  # Ensure symmetry for undirected graph
+
+# Main simulation loop
 for simulation in range(NUM_SIMULATIONS):
     current_node = START_NODE
     step_count = 0
@@ -76,13 +65,14 @@ for simulation in range(NUM_SIMULATIONS):
 
     while current_node != TARGET_NODE:
         if step_count % UPDATE_INTERVAL == 0 or current_node == START_NODE:
-            # Recalculate weights at set intervals
             for neighbor in G_undirected.neighbors(current_node):
-                distance = G_undirected[current_node][neighbor]['distance']
+                # Consistently order the tuple to avoid KeyError
+                edge_key = tuple(sorted((current_node, neighbor)))
+                distance = G_undirected.edges[current_node, neighbor]['distance']
                 car_speed_factor = weather_speed_reduction[weather_condition]
                 car_travel_time = distance / (car_speed * car_speed_factor)
 
-                # Sample pedestrian crossing time
+                # Pedestrian crossing time
                 pedestrian_time = 0
                 if neighbor in nodes_with_crossings:
                     p_params = pedestrian_params[weather_condition]
@@ -91,16 +81,18 @@ for simulation in range(NUM_SIMULATIONS):
                         (p_params['max_delay'] - p_params['mean_delay']) / p_params['std_dev'],
                         loc=p_params['mean_delay'], scale=p_params['std_dev']) / 3600
                 
-                # Sample traffic light time
+                # Traffic light time
                 traffic_light_time = np.random.choice(traffic_light_choices) / 3600
                 
-                # Update and average weight
+                # Calculate and update the running average weight
                 new_weight = car_travel_time + pedestrian_time + traffic_light_time
+                count = update_counts[edge_key]
                 existing_weight = G_undirected[current_node][neighbor]['weight']
-                updated_weight = (existing_weight + new_weight) / 2 if existing_weight != 0 else new_weight
+                updated_weight = (existing_weight * count + new_weight) / (count + 1)
                 G_undirected[current_node][neighbor]['weight'] = updated_weight
+                update_counts[edge_key] += 1  # Increment the update count
 
-        # Use a priority queue to determine the next node to move to
+        # Priority queue to determine the next node
         neighbors = [(G_undirected[current_node][n]['weight'], n) for n in G_undirected.neighbors(current_node)]
         heapq.heapify(neighbors)
         min_weight, next_node = heapq.heappop(neighbors)
@@ -109,8 +101,6 @@ for simulation in range(NUM_SIMULATIONS):
 
         step_count += 1
 
-    # Calculate path time using the latest weights
+    # Calculate total path time based on the latest weights
     path_time = sum(G_undirected[u][v]['weight'] for u, v in zip(path[:-1], path[1:]))
     print(f"Path found in simulation {simulation+1}: {path} with time: {path_time * 60:.2f} minutes")
-
-# This code maintains stochastic behavior for pedestrian crossings and traffic lights, updating them at set
