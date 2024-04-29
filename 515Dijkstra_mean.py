@@ -1,11 +1,12 @@
-import networkx as nx
+import numpy as np
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import dijkstra
 
-# Speed of the car in miles per hour
-car_speed = 10  # car speed in miles/hour
-
+# Constants
+car_speed = 10  # car speed in miles per hour
 weather_condition = "clear"
 
-# Define the weather conditions and their effects
+# Weather conditions effects
 weather_speed_reduction = {
     "clear": 1,
     "windy": 0.9,
@@ -13,11 +14,19 @@ weather_speed_reduction = {
     "stormy": 0.7
 }
 
-# Initialize the undirected graph
-G_undirected = nx.Graph()
+# Pedestrian and traffic light parameters
+pedestrian_crossing_parameters = {
+    "clear": {'mean_delay': 90},  # Mean delay in seconds
+    "windy": {'mean_delay': 70},
+    "rainy": {'mean_delay': 50},
+    "stormy": {'mean_delay': 30}
+}
 
-# Add edges with weights representing the travel time assuming no red light stop.
-# Weight is the travel distance in miles.
+traffic_light_parameters = {
+    "mean_delay": 15  # Mean delay in seconds
+}
+
+# Define edges and node properties
 edges = {
     ('A', 'B', 0.5),
     ('B', 'A', 0.5),
@@ -32,63 +41,63 @@ edges = {
     ('C', 'F', 0.1),
     ('F', 'C', 0.1),
     ('F', 'G', 0.2),
-    ('G','F',0.2),
-    ('D','H1',0.3),
-    ('H1','D',0.3),
-    ('D','H2',0.2),
-    ('H2','D',0.2),
-    ('H1','I',0.3),
-    ('I','H1',0.3),
-    ('H2','I',0.3),
-    ('I','H2',0.3),
-    ('I','J',0.1),
-    ('J','I',0.1),
-    ('F','J',0.2),
-    ('J','F',0.2),
+    ('G', 'F', 0.2),
+    ('D', 'H1', 0.3),
+    ('H1', 'D', 0.3),
+    ('D', 'H2', 0.2),
+    ('H2', 'D', 0.2),
+    ('H1', 'I', 0.3),
+    ('I', 'H1', 0.3),
+    ('H2', 'I', 0.3),
+    ('I', 'H2', 0.3),
+    ('I', 'J', 0.1),
+    ('J', 'I', 0.1),
+    ('F', 'J', 0.2),
+    ('J', 'F', 0.2)
 }
 
-# Nodes with pedestrian crossings
-nodes_with_crossings = ['D', 'E', 'H2', 'I']
+node_indices = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H1': 7, 'H2': 8, 'I': 9, 'J': 10}
+num_nodes = len(node_indices)
 
-# Nodes with traffic lights
-nodes_with_traffic_lights = ['A', 'B', 'D', 'F', 'H1','H2', 'J']
-
-pedestrian_crossing_parameters = {
-    "clear": {'mean_delay': 90},  # Mean delay in seconds
-    "windy": {'mean_delay': 70},
-    "rainy": {'mean_delay': 50},
-    "stormy": {'mean_delay': 30}
-}
-
-traffic_light_parameters = {
-    "mean_delay": 15  # Mean delay in seconds
-}
-
-# Adjust weights for car speed reduction, pedestrian crossing time distribution, and traffic lights
-for edge in edges:
-    start, end, distance = edge
-    # Adjust car speed reduction factor for the edge based on weather condition
+# Calculate and store weights
+weights = np.full((num_nodes, num_nodes), np.inf)
+for (start, end, distance) in edges:
+    start_idx = node_indices[start]
+    end_idx = node_indices[end]
+    
+    # Weather speed reduction
     car_speed_reduction_factor = weather_speed_reduction[weather_condition]
-    # Calculate car travel time for the edge in hours
+    # Car travel time in hours
     car_travel_time = distance / (car_speed * car_speed_reduction_factor)
     
-    # Calculate potential pedestrian crossing time
+    # Pedestrian crossing time
     pedestrian_crossing_time_hour = 0
-    if end in nodes_with_crossings:
+    if end in ['D', 'E', 'H2', 'I']:
         pedestrian_crossing_time_hour = pedestrian_crossing_parameters[weather_condition]['mean_delay'] / 3600
     
-    # Calculate potential traffic light delay time
+    # Traffic light delay time
     traffic_light_time_hour = 0
-    if end in nodes_with_traffic_lights:
+    if end in ['A', 'B', 'D', 'F', 'H1', 'H2', 'J']:
         traffic_light_time_hour = traffic_light_parameters['mean_delay'] / 3600
     
-    # Total travel time for the edge in hours, converting to minutes for precision
+    # Total time in minutes
     total_time_minutes = (car_travel_time + pedestrian_crossing_time_hour + traffic_light_time_hour) * 60
-    G_undirected.add_edge(start, end, weight=total_time_minutes)
+    weights[start_idx][end_idx] = total_time_minutes
 
-# Solve the shortest path problem using Dijkstra's algorithm
-ssp_path = nx.dijkstra_path(G_undirected, source='A', target='I', weight='weight')
-ssp_path_time = nx.dijkstra_path_length(G_undirected, source='A', target='I', weight='weight')
+# Create sparse matrix and apply Dijkstra's algorithm
+graph = csr_matrix(weights)
+distances, predecessors = dijkstra(csgraph=graph, directed=False, indices=node_indices['A'], return_predecessors=True)
 
-print(f"Optimal Route: {ssp_path}")
-print(f"Optimal Time: {ssp_path_time:.2f} minutes")
+# Retrieve the shortest path from 'A' to 'I'
+i = node_indices['I']
+path = []
+while i != node_indices['A']:
+    path.append(i)
+    i = predecessors[i]
+path.append(node_indices['A'])
+path.reverse()
+path = [list(node_indices.keys())[idx] for idx in path]
+
+# Output results
+print(f"Optimal Route: {path}")
+print(f"Optimal Time: {distances[node_indices['I']]:.2f} minutes")
