@@ -75,48 +75,66 @@ traffic_light_parameters = {
     "green": 0
 }
 
-# Adjust weights for car speed reduction, pedestrian crossing time distribution, and traffic lights
-for edge in edges:
-    start, end, distance = edge
-    # Adjust car speed reduction factor for the edge based on weather condition
-    car_speed_reduction_factor = weather_speed_reduction.get(weather_condition, 1)
-    # Calculate car travel time for the edge in hours
-    car_travel_time = distance / car_speed
-    
-    # Check if the end node has pedestrian crossing
-    if end in nodes_with_crossings:
-        # Get pedestrian crossing time distribution parameters based on weather condition
-        pedestrian_params = pedestrian_crossing_parameters.get(weather_condition, {})
-        # Sample pedestrian crossing time from truncated normal distribution in seconds
-        pedestrian_crossing_time_sec = stats.truncnorm.rvs((pedestrian_params['min_delay'] - pedestrian_params['mean_delay']) / pedestrian_params['std_dev'],
-                                                           (pedestrian_params['max_delay'] - pedestrian_params['mean_delay']) / pedestrian_params['std_dev'],
-                                                           loc=pedestrian_params['mean_delay'],
-                                                           scale=pedestrian_params['std_dev'])
-        # Convert pedestrian crossing time from seconds to hours
-        pedestrian_crossing_time_hour = pedestrian_crossing_time_sec / 3600
-    else:
-        # No pedestrian crossing at this edge, pedestrian crossing time is 0
-        pedestrian_crossing_time_hour = 0
-    
-    # Check if the end node has traffic lights
-    if end in nodes_with_traffic_lights:
-        # Sample traffic light time
-        traffic_light_time_sec = np.random.choice([traffic_light_parameters["red"], traffic_light_parameters["green"]])
-        # Convert traffic light time from seconds to hours
-        traffic_light_time_hour = traffic_light_time_sec / 3600
-    else:
-        # No traffic lights at this edge, traffic light time is 0
-        traffic_light_time_hour = 0
-    
-    # Calculate total time for the edge in hours
-    total_time_hour = car_travel_time + pedestrian_crossing_time_hour + traffic_light_time_hour
-    # Adjust edge weight based on total time in hours
-    G_undirected.add_edge(start, end, weight=total_time_hour / car_speed_reduction_factor)
+# Variables to store optimal routes and path times
+optimal_routes = []
+path_times = []
 
-# Find the shortest path using Dijkstra's algorithm
-# We find the shortest path from node 'A' to 'I' as an example.
-ssp_path = nx.dijkstra_path(G_undirected, source='A', target='I', weight='weight')
-ssp_path_time = nx.dijkstra_path_length(G_undirected, source='A', target='I', weight='weight')
+# Run the algorithm 50 times
+for _ in range(50):
+    # Adjust weights for car speed reduction, pedestrian crossing time distribution, and traffic lights
+    for edge in edges:
+        start, end, distance = edge
+        # Adjust car speed reduction factor for the edge based on weather condition
+        car_speed_reduction_factor = weather_speed_reduction.get(weather_condition, 1)
+        # Calculate car travel time for the edge in hours
+        car_travel_time = distance / car_speed
 
-print("Shortest Path:", ssp_path)
-print("Shortest Path Time:", ssp_path_time * 60, "minutes")
+        # Check if the end node has pedestrian crossing
+        if end in nodes_with_crossings:
+            # Get pedestrian crossing time distribution parameters based on weather condition
+            pedestrian_params = pedestrian_crossing_parameters.get(weather_condition, {})
+            # Sample pedestrian crossing time from truncated normal distribution in seconds
+            pedestrian_crossing_time_sec = stats.truncnorm.rvs((pedestrian_params['min_delay'] - pedestrian_params['mean_delay']) / pedestrian_params['std_dev'],
+                                                               (pedestrian_params['max_delay'] - pedestrian_params['mean_delay']) / pedestrian_params['std_dev'],
+                                                               loc=pedestrian_params['mean_delay'],
+                                                               scale=pedestrian_params['std_dev'])
+            # Convert pedestrian crossing time from seconds to hours
+            pedestrian_crossing_time_hour = pedestrian_crossing_time_sec / 3600
+        else:
+            # No pedestrian crossing at this edge, pedestrian crossing time is 0
+            pedestrian_crossing_time_hour = 0
+
+        # Check if the end node has traffic lights
+        if end in nodes_with_traffic_lights:
+            # Sample traffic light time
+            traffic_light_time_sec = np.random.choice([traffic_light_parameters["red"], traffic_light_parameters["green"]])
+            # Convert traffic light time from seconds to hours
+            traffic_light_time_hour = traffic_light_time_sec / 3600
+        else:
+            # No traffic lights at this edge, traffic light time is 0
+            traffic_light_time_hour = 0
+
+        # Calculate total time for the edge in hours
+        total_time_hour = car_travel_time + pedestrian_crossing_time_hour + traffic_light_time_hour
+        # Adjust edge weight based on total time in hours
+        G_undirected.add_edge(start, end, weight=total_time_hour / car_speed_reduction_factor)
+
+    # Find the shortest path using Dijkstra's algorithm
+    ssp_path = nx.dijkstra_path(G_undirected, source='A', target='I', weight='weight')
+    ssp_path_time = nx.dijkstra_path_length(G_undirected, source='A', target='I', weight='weight')
+
+    # Store the optimal route and path time
+    optimal_routes.append(ssp_path)
+    path_times.append(ssp_path_time)
+
+    # Clear the graph for the next iteration
+    G_undirected.clear()
+
+# Count the proportion of each optimal route
+route_counts = {tuple(route): optimal_routes.count(route) / 50 for route in optimal_routes}
+
+# Calculate the average path time
+average_path_time = sum(path_times) / len(path_times)
+
+print("Optimal Routes:", route_counts)
+print("Average Path Time:", average_path_time * 60, "minutes")
