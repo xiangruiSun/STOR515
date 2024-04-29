@@ -60,6 +60,9 @@ edges = {
 # Nodes with pedestrian crossings
 nodes_with_crossings = ['D', 'E', 'H2', 'I']
 
+# Nodes with traffic lights
+nodes_with_traffic_lights = ['A', 'B', 'D', 'F', 'H', 'J']
+
 pedestrian_crossing_parameters = {
     "clear": {'min_delay': 30, 'max_delay': 180, 'mean_delay': 90, 'std_dev': 35},
     "windy": {'min_delay': 25, 'max_delay': 160, 'mean_delay': 70, 'std_dev': 30},
@@ -67,7 +70,12 @@ pedestrian_crossing_parameters = {
     "stormy": {'min_delay': 0, 'max_delay': 80, 'mean_delay': 30, 'std_dev': 20}
 }
 
-# Adjust weights for car speed reduction and pedestrian crossing time distribution
+traffic_light_parameters = {
+    "red": 30,
+    "green": 0
+}
+
+# Adjust weights for car speed reduction, pedestrian crossing time distribution, and traffic lights
 for edge in edges:
     start, end, distance = edge
     # Adjust car speed reduction factor for the edge based on weather condition
@@ -75,8 +83,8 @@ for edge in edges:
     # Calculate car travel time for the edge in hours
     car_travel_time = distance / car_speed
     
-    # Check if either start or end node has pedestrian crossing
-    if start in nodes_with_crossings or end in nodes_with_crossings:
+    # Check if the end node has pedestrian crossing
+    if end in nodes_with_crossings:
         # Get pedestrian crossing time distribution parameters based on weather condition
         pedestrian_params = pedestrian_crossing_parameters.get(weather_condition, {})
         # Sample pedestrian crossing time from truncated normal distribution in seconds
@@ -90,8 +98,18 @@ for edge in edges:
         # No pedestrian crossing at this edge, pedestrian crossing time is 0
         pedestrian_crossing_time_hour = 0
     
+    # Check if the end node has traffic lights
+    if end in nodes_with_traffic_lights:
+        # Sample traffic light time
+        traffic_light_time_sec = np.random.choice([traffic_light_parameters["red"], traffic_light_parameters["green"]])
+        # Convert traffic light time from seconds to hours
+        traffic_light_time_hour = traffic_light_time_sec / 3600
+    else:
+        # No traffic lights at this edge, traffic light time is 0
+        traffic_light_time_hour = 0
+    
     # Calculate total time for the edge in hours
-    total_time_hour = car_travel_time + pedestrian_crossing_time_hour
+    total_time_hour = car_travel_time + pedestrian_crossing_time_hour + traffic_light_time_hour
     # Adjust edge weight based on total time in hours
     G_undirected.add_edge(start, end, weight=total_time_hour / car_speed_reduction_factor)
 
