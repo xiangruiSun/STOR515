@@ -74,15 +74,17 @@ for simulation in range(NUM_SIMULATIONS):
 
                 # Pedestrian crossing time
                 pedestrian_time = 0
-                if neighbor in nodes_with_crossings:
+                if neighbor in nodes_with_crossings or current_node in nodes_with_crossings:
                     p_params = pedestrian_params[weather_condition]
                     pedestrian_time = truncnorm.rvs(
                         (p_params['min_delay'] - p_params['mean_delay']) / p_params['std_dev'],
                         (p_params['max_delay'] - p_params['mean_delay']) / p_params['std_dev'],
                         loc=p_params['mean_delay'], scale=p_params['std_dev']) / 3600
                 
-                # Traffic light time
-                traffic_light_time = np.random.choice(traffic_light_choices) / 3600
+                traffic_light_time = 0
+                if neighbor in nodes_with_traffic_lights or current_node in nodes_with_traffic_lights:
+                    # Traffic light time
+                    traffic_light_time = np.random.choice(traffic_light_choices) / 3600
                 
                 # Calculate and update the running average weight
                 new_weight = car_travel_time + pedestrian_time + traffic_light_time
