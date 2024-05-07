@@ -4,8 +4,8 @@ import numpy as np
 
 # Speed of the car in miles per hour
 car_speed = 10  # car speed in miles/hour
-
-weather_condition = "stormy"
+run_time = 100
+weather_condition = "clear"
 
 # Define the weather conditions and their effects
 weather_speed_reduction = {
@@ -61,13 +61,15 @@ edges = {
 nodes_with_crossings = ['D', 'E', 'H2', 'I']
 
 # Nodes with traffic lights
-nodes_with_traffic_lights = ['A', 'B', 'D', 'F', 'H', 'J']
+nodes_with_traffic_lights = ['A', 'B', 'D', 'F', 'H1','H2', 'J']
 
 pedestrian_crossing_parameters = {
     "clear": {'min_delay': 30, 'max_delay': 180, 'mean_delay': 90, 'std_dev': 35},
     "windy": {'min_delay': 25, 'max_delay': 160, 'mean_delay': 70, 'std_dev': 30},
     "rainy": {'min_delay': 10, 'max_delay': 120, 'mean_delay': 50, 'std_dev': 25},
-    "stormy": {'min_delay': 0, 'max_delay': 80, 'mean_delay': 30, 'std_dev': 20}
+    "stormy": {'min_delay': 0, 'max_delay': 80, 'mean_delay': 30, 'std_dev': 20},
+    "moderate": {'min_delay': 0, 'max_delay': 60, 'mean_delay': 30, 'std_dev': 10},
+    "empty": {'min_delay': 0, 'max_delay': 0, 'mean_delay': 0, 'std_dev': 0}
 }
 
 traffic_light_parameters = {
@@ -80,14 +82,14 @@ optimal_routes = []
 path_times = []
 
 # Run the algorithm 50 times
-for _ in range(50):
+for _ in range(run_time):
     # Adjust weights for car speed reduction, pedestrian crossing time distribution, and traffic lights
     for edge in edges:
         start, end, distance = edge
         # Adjust car speed reduction factor for the edge based on weather condition
         car_speed_reduction_factor = weather_speed_reduction.get(weather_condition, 1)
         # Calculate car travel time for the edge in hours
-        car_travel_time = distance / car_speed
+        car_travel_time = distance / (car_speed*car_speed_reduction_factor)
 
         # Check if the end node has pedestrian crossing
         if end in nodes_with_crossings:
@@ -117,7 +119,7 @@ for _ in range(50):
         # Calculate total time for the edge in hours
         total_time_hour = car_travel_time + pedestrian_crossing_time_hour + traffic_light_time_hour
         # Adjust edge weight based on total time in hours
-        G_undirected.add_edge(start, end, weight=total_time_hour / car_speed_reduction_factor)
+        G_undirected.add_edge(start, end, weight=total_time_hour)
 
     # Find the shortest path using Dijkstra's algorithm
     ssp_path = nx.dijkstra_path(G_undirected, source='A', target='I', weight='weight')
@@ -131,7 +133,7 @@ for _ in range(50):
     G_undirected.clear()
 
 # Count the proportion of each optimal route
-route_counts = {tuple(route): optimal_routes.count(route) / 50 for route in optimal_routes}
+route_counts = {tuple(route): optimal_routes.count(route) / run_time for route in optimal_routes}
 
 # Calculate the average path time
 average_path_time = sum(path_times) / len(path_times)
