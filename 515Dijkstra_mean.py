@@ -19,7 +19,9 @@ pedestrian_crossing_parameters = {
     "clear": {'mean_delay': 90},  # Mean delay in seconds
     "windy": {'mean_delay': 70},
     "rainy": {'mean_delay': 50},
-    "stormy": {'mean_delay': 30}
+    "stormy": {'mean_delay': 30},
+    "moderate": {'mean_delay': 30},
+    "empty": {'mean_delay': 0}
 }
 
 traffic_light_parameters = {
