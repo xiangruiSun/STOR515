@@ -26,8 +26,11 @@ pedestrian_params = {
     "clear": {'min_delay': 30, 'max_delay': 180, 'mean_delay': 90, 'std_dev': 35},
     "windy": {'min_delay': 25, 'max_delay': 160, 'mean_delay': 70, 'std_dev': 30},
     "rainy": {'min_delay': 10, 'max_delay': 120, 'mean_delay': 50, 'std_dev': 25},
-    "stormy": {'min_delay': 0, 'max_delay': 80, 'mean_delay': 30, 'std_dev': 20}
+    "stormy": {'min_delay': 0, 'max_delay': 80, 'mean_delay': 30, 'std_dev': 20},
+    "moderate": {'min_delay': 0, 'max_delay': 60, 'mean_delay': 30, 'std_dev': 10},
+    "empty": {'min_delay': 0, 'max_delay': 0, 'mean_delay': 0, 'std_dev': 0}
 }
+
 traffic_light_choices = [30, 0]  # Possible durations of traffic lights in seconds
 
 # Specified nodes that have pedestrian crossings and traffic lights
